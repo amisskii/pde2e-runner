@@ -20,7 +20,6 @@ spec:
   - name: pipelines-data
   
   params:
-  # Target host parameters
   - name: host
     description: host to connect to the provisioned machine
   - name: username
@@ -37,16 +36,15 @@ spec:
     default: amd64
   - name: workspace-resources-path
     description: path on workspace to find resources to connect to the target machine
-  # PDE2E Runner parameters
   - name: image-version
     description: pde2e-runner image version
     default: '0.0.3'
   - name: pd-url
-    description: in case we want to download a specific podman desktop version. We can set up the url
-    default: "''"
+    description: specific podman desktop version download url
+    default: ""
   - name: pd-path
-    description: in case we want to test an existing version on the target host we can set up the path here
-    default: "''"
+    description: existing version path on target host
+    default: ""
   - name: fork
     description: Podman Desktop repo fork
     default: 'podman-desktop'
@@ -55,13 +53,13 @@ spec:
     default: 'main'
   - name: ext-repo
     description: Podman Desktop Extension repo name
-    default: "''"
+    default: ""
   - name: ext-fork
     description: Podman Desktop extension repo fork
-    default: "''"
+    default: ""
   - name: ext-branch
     description: Podman Desktop repository branch or tag to checkout
-    default: "''"
+    default: ""
   - name: ext-tests
     description: Whether run the E2E tests from the extension
     default: '0'
@@ -70,7 +68,7 @@ spec:
     default: 'test:e2e'
   - name: podman-path
     description: Path to a podman binary
-    default: "''"
+    default: ""
   - name: podman-initialize
     description: Podman initialization
     default: '1'
@@ -85,13 +83,13 @@ spec:
     default: '0'
   - name: env-vars
     description: Environment variables to be passed into image
-    default: "'TEST_PODMAN_MACHINE=true,TEST=2'"
+    default: "TEST_PODMAN_MACHINE=true,TEST=2"
   - name: secret-file
     description: A path to the files with secrets
-    default: "''"
+    default: ""
   - name: podman-provider
     description: A podman provider
-    default: "''"
+    default: ""
   - name: save-traces
     description: Whether to save playwright trace files
     default: '1'
@@ -100,52 +98,45 @@ spec:
     default: '1'
   - name: script-paths
     description: A path to the custom scripts present on image
-    default: "''"
-  # Results parameters
+    default: ""
   - name: workspace-qe-subpath
     description: subpath relative to workspace path where results are stored
     default: qe-results
   - name: results-folder
-    description: directory for the junit file(s) holding the e2e results and other test artifacts
+    description: directory for the junit file(s)
     default: results
-  # Control params
   - name: target-cleanup
-    description: 'this param controls if folder on target host will be removed. Defaults true'
+    description: 'controls if folder on target host will be removed'
     default: 'true'
 
   results:
   - name: duration
-    description: total amount of time in seconds for the qe execution
   - name: junit-name
-    description: name of the junit file
   - name: junit-path
-    description: gettting path to the results folder into results
 
   steps:
   - name: e2e
     image: quay.io/odockal/pde2e-runner:v$(params.image-version)-$(params.os)
-    # We do not have a strict control on versions (as so they can be override)
-    # force here to pull everytime just in case it is overriden
     imagePullPolicy: Always
     script: |
       #!/bin/bash
+      set -e
 
-      # This is kept the same as in other tasks
-      # Prepare ENVs
       SECONDS=0
-      TARGET_HOST='$(params.host)'
-      TARGET_HOST_USERNAME='$(params.username)'
-      TARGET_HOST_KEY_PATH='$(workspaces.pipelines-data.path)'/'$(params.workspace-resources-path)'/'$(params.key)'
-      chmod 600 ${TARGET_HOST_KEY_PATH}
+      TARGET_HOST="$(params.host)"
+      TARGET_HOST_USERNAME="$(params.username)"
+      TARGET_HOST_KEY_PATH="$(workspaces.pipelines-data.path)/$(params.workspace-resources-path)/$(params.key)"
+      
+      chmod 600 "${TARGET_HOST_KEY_PATH}"
       TARGET_FOLDER=pd-e2e
-      TARGET_RESULTS='$(params.results-folder)'
-      TARGET_CLEANUP='$(params.target-cleanup)'
-      OUTPUT_FOLDER='$(workspaces.pipelines-data.path)'/'$(params.workspace-resources-path)'/'$(params.workspace-qe-subpath)'
+      TARGET_RESULTS="$(params.results-folder)"
+      TARGET_CLEANUP="$(params.target-cleanup)"
+      OUTPUT_FOLDER="$(workspaces.pipelines-data.path)/$(params.workspace-resources-path)/$(params.workspace-qe-subpath)"
       mkdir -p "${OUTPUT_FOLDER}"
 
       # get the secret file into target host
-      if [ -n '$(params.secret-file)' ]; then
-        secretFile='$(workspaces.pipelines-data.path)'/'$(params.workspace-resources-path)'/'$(params.secret-file)'
+      if [ -n "$(params.secret-file)" ]; then
+        secretFile="$(workspaces.pipelines-data.path)/$(params.workspace-resources-path)/$(params.secret-file)"
         echo "Copying secret file: '$(params.secret-file)' from $secretFile to assets folder of the image"
         cp "${secretFile}" /opt/pde2e-runner/
       else 
@@ -153,7 +144,7 @@ spec:
       fi
       
       # Create command
-      if [[ '$(params.os)' == "windows" ]]; then
+      if [[ "$(params.os)" == "windows" ]]; then
         cmd="${TARGET_FOLDER}/runner.ps1 "
         cmd="$cmd -targetFolder '${TARGET_FOLDER}' "
         cmd="$cmd -resultsFolder '${TARGET_RESULTS}' "
@@ -162,15 +153,9 @@ spec:
         cmd="$cmd -fork '$(params.fork)' "
         cmd="$cmd -branch '$(params.branch)' "
         cmd="$cmd -extTests '$(params.ext-tests)' "
-        if [[ -n '$(params.ext-repo)' ]]; then
-          cmd="$cmd -extRepo '$(params.ext-repo)' "
-        fi
-        if [[ -n '$(params.ext-fork)' ]]; then
-          cmd="$cmd -extFork '$(params.ext-fork)' "
-        fi
-        if [[ -n '$(params.ext-branch)' ]]; then
-          cmd="$cmd -extBranch '$(params.ext-branch)' "
-        fi
+        [[ -n "$(params.ext-repo)" ]] && cmd="$cmd -extRepo '$(params.ext-repo)' "
+        [[ -n "$(params.ext-fork)" ]] && cmd="$cmd -extFork '$(params.ext-fork)' "
+        [[ -n "$(params.ext-branch)" ]] && cmd="$cmd -extBranch '$(params.ext-branch)' "
         cmd="$cmd -envVars '$(params.env-vars)' "
         cmd="$cmd -secretFile '$(params.secret-file)' "
         cmd="$cmd -npmTarget '$(params.npm-target)' "
@@ -179,52 +164,34 @@ spec:
         cmd="$cmd -start '$(params.podman-start)' "
         cmd="$cmd -rootful '$(params.podman-rootful)' "
         cmd="$cmd -userNetworking '$(params.podman-user-networking)' "
-        if [[ -n '$(params.script-paths)' ]]; then
-          cmd="$cmd -scriptPaths '$(params.script-paths)' "
-        fi
-        if [[ -n '$(params.podman-provider)' ]]; then
-          cmd="$cmd -podmanProvider '$(params.podman-provider)' "
-        fi
+        [[ -n "$(params.script-paths)" ]] && cmd="$cmd -scriptPaths '$(params.script-paths)' "
+        [[ -n "$(params.podman-provider)" ]] && cmd="$cmd -podmanProvider '$(params.podman-provider)' "
         cmd="$cmd -saveTraces '$(params.save-traces)' "
       fi
 
-      if [[ '$(params.os)' == "darwin" ]]; then
+      if [[ "$(params.os)" == "darwin" ]]; then
         cmd="${TARGET_FOLDER}/runner.sh "
         cmd="$cmd --targetFolder '${TARGET_FOLDER}' "
         cmd="$cmd --resultsFolder '${TARGET_RESULTS}' "
         cmd="$cmd --pdPath '$(params.pd-path)' "
-        if [[ -n '$(params.pd-url)' ]]; then
-          cmd="$cmd --pdUrl '$(params.pd-url)' "
-        fi
+        [[ -n "$(params.pd-url)" ]] && cmd="$cmd --pdUrl '$(params.pd-url)' "
         cmd="$cmd --extTests '$(params.ext-tests)' "
-        if [[ -n '$(params.ext-repo)' ]]; then
-          cmd="$cmd --extRepo '$(params.ext-repo)' "
-        fi
-        if [[ -n '$(params.ext-fork)' ]]; then
-          cmd="$cmd --extFork '$(params.ext-fork)' "
-        fi
-        if [[ -n '$(params.ext-branch)' ]]; then
-          cmd="$cmd --extBranch '$(params.ext-branch)' "
-        fi
+        [[ -n "$(params.ext-repo)" ]] && cmd="$cmd --extRepo '$(params.ext-repo)' "
+        [[ -n "$(params.ext-fork)" ]] && cmd="$cmd --extFork '$(params.ext-fork)' "
+        [[ -n "$(params.ext-branch)" ]] && cmd="$cmd --extBranch '$(params.ext-branch)' "
         cmd="$cmd --envVars '$(params.env-vars)' "
         cmd="$cmd --secretFile '$(params.secret-file)' "
         cmd="$cmd --fork '$(params.fork)' "
         cmd="$cmd --branch '$(params.branch)' "
         cmd="$cmd --npmTarget '$(params.npm-target)' "
-        if [[ -n '$(params.podman-path)' ]]; then
-          cmd="$cmd --podmanPath '$(params.podman-path)' "
-        fi
+        [[ -n "$(params.podman-path)" ]] && cmd="$cmd --podmanPath '$(params.podman-path)' "
         cmd="$cmd --initialize '$(params.podman-initialize)' "
         cmd="$cmd --start '$(params.podman-start)' "
         cmd="$cmd --rootful '$(params.podman-rootful)' "
-        if [[ -n '$(params.podman-provider)' ]]; then
-          cmd="$cmd --podmanProvider '$(params.podman-provider)' "
-        fi
+        [[ -n "$(params.podman-provider)" ]] && cmd="$cmd --podmanProvider '$(params.podman-provider)' "
         cmd="$cmd --saveTraces '$(params.save-traces)' "
         cmd="$cmd --cleanMachine '$(params.clean-machine)' "
-        if [[ -n '$(params.script-paths)' ]]; then
-          cmd="$cmd --scriptPaths '$(params.script-paths)' "
-        fi
+        [[ -n "$(params.script-paths)" ]] && cmd="$cmd --scriptPaths '$(params.script-paths)' "
       fi
       
       echo "Composed Command to be executed: '${cmd}'"
@@ -233,19 +200,13 @@ spec:
       . entrypoint.sh "${cmd}"
 
       # Results
-      echo "Storing duration result..."
-      echo -n "${SECONDS}" | tee '$(results.duration.path)'
+      echo -n "${SECONDS}" | tee "$(results.duration.path)"
       
-      # Move all results to qe-path
-      echo "Copying results '${OUTPUT_FOLDER}/${TARGET_RESULTS}' to output folder"
       mv ${OUTPUT_FOLDER}/${TARGET_RESULTS}/* ${OUTPUT_FOLDER}
-      echo "Removal of the target results"
       rm -rf ${OUTPUT_FOLDER}/${TARGET_RESULTS}
 
-      echo "Print out the content of the output folder with results"
-      ls -R ${OUTPUT_FOLDER}
-      echo -n "$(basename $(ls ${OUTPUT_FOLDER}/junit*.xml))" | tee '$(results.junit-name.path)'
-      echo -n "$(ls ${OUTPUT_FOLDER}/junit*.xml)" | tee '$(results.junit-path.path)'
+      echo -n "$(basename $(ls ${OUTPUT_FOLDER}/junit*.xml))" | tee "$(results.junit-name.path)"
+      echo -n "$(ls ${OUTPUT_FOLDER}/junit*.xml)" | tee "$(results.junit-path.path)"
       
     resources:      
       requests:
@@ -266,7 +227,6 @@ spec:
       value: $(params.username)
     - name: RDP_PASSWORD
       value: $(params.userpassword)
-
     resources:      
       requests:
         memory: "30Mi"
