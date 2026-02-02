@@ -158,10 +158,10 @@ spec:
         cmd="${TARGET_FOLDER}/runner.ps1 "
         cmd="$cmd -targetFolder ${TARGET_FOLDER} "
         cmd="$cmd -resultsFolder ${TARGET_RESULTS} "
-        if [[ -n "$(params.pd-path)"]]; then 
+        if [[ -n "$(params.pd-path)" ]]; then 
            cmd="$cmd -pdPath $(params.pd-path) "
         fi
-        if [[ -n "$(params.pd-url)"]]; then 
+        if [[ -n "$(params.pd-url)" ]]; then 
           cmd="$cmd -pdUrl $(params.pd-url) "
         fi
         cmd="$cmd -fork $(params.fork) "
