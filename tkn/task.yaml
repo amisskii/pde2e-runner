@@ -158,8 +158,12 @@ spec:
         cmd="${TARGET_FOLDER}/runner.ps1 "
         cmd="$cmd -targetFolder ${TARGET_FOLDER} "
         cmd="$cmd -resultsFolder ${TARGET_RESULTS} "
-        cmd="$cmd -pdPath $(params.pd-path) "
-        cmd="$cmd -pdUrl $(params.pd-url) "
+        if [[ -n "$(params.pd-path)" ]]; then 
+           cmd="$cmd -pdPath $(params.pd-path) "
+        fi
+        if [[ -n "$(params.pd-url)" ]]; then 
+          cmd="$cmd -pdUrl $(params.pd-url) "
+        fi
         cmd="$cmd -fork $(params.fork) "
         cmd="$cmd -branch $(params.branch) "
         cmd="$cmd -extTests $(params.ext-tests) "
@@ -175,7 +179,9 @@ spec:
         cmd="$cmd -envVars $(params.env-vars) "
         cmd="$cmd -secretFile $(params.secret-file) "
         cmd="$cmd -npmTarget $(params.npm-target) "
-        cmd="$cmd -podmanPath $(params.podman-path) "
+        if [[ -n "$(params.podman-path)" ]]; then
+          cmd="$cmd -podmanPath $(params.podman-path) "
+        fi
         cmd="$cmd -initialize $(params.podman-initialize) "
         cmd="$cmd -start $(params.podman-start) "
         cmd="$cmd -rootful $(params.podman-rootful) "
@@ -192,7 +198,9 @@ spec:
         cmd="${TARGET_FOLDER}/runner.sh "
         cmd="$cmd --targetFolder ${TARGET_FOLDER} "
         cmd="$cmd --resultsFolder ${TARGET_RESULTS} "
-        cmd="$cmd --pdPath $(params.pd-path) "
+        if [[ -n "$(params.pd-path)" ]]; then
+          cmd="$cmd --pdPath $(params.pd-path) "
+        fi
         if [[ -n "$(params.pd-url)" ]]; then
           cmd="$cmd --pdUrl $(params.pd-url) "
         fi
@@ -265,15 +273,7 @@ spec:
     - name: RDP_USER
       value: $(params.username)
     - name: RDP_PASSWORD
-      value: $(params.userpassword)
-    script: |
-      #!/bin/sh
-      
-      # Sidecar is used to create a fake RDP connection, this is only required for windows
-      if [[ $(params.os) == "windows" ]]; then
-        . entrypoint.sh
-      fi
-      
+      value: $(params.userpassword)      
     resources:      
       requests:
         memory: "30Mi"
