@@ -124,7 +124,7 @@ spec:
 
   steps:
   - name: e2e
-    image: quay.io/odockal/pde2e-runner:v$(params.image-version)-$(params.os)
+    image: quay.io/rh_ee_amisskii/pde2e-runner:v$(params.image-version)-$(params.os)
     # We do not have a strict control on versions (as so they can be override)
     # force here to pull everytime just in case it is overriden
     imagePullPolicy: Always
