@@ -31,7 +31,7 @@ spec:
   - name: key
     description: key file name to connect to the provisioned machine within the workspace resources path   
   - name: os
-    description: type of platform per target host (windows, darwin)
+    description: type of platform per target host (windows, darwin, rhel)
     default: windows
   - name: arch
     description: type of arch per target host for windows only amd64, for darwin amd64 or arm64 
@@ -124,7 +124,7 @@ spec:
 
   steps:
   - name: e2e
-    image: quay.io/odockal/pde2e-runner:v$(params.image-version)-$(params.os)
+    image: quay.io/rh_ee_amisskii/pde2e-runner-rhel:v0.1
     # We do not have a strict control on versions (as so they can be override)
     # force here to pull everytime just in case it is overriden
     imagePullPolicy: Always
@@ -194,7 +194,7 @@ spec:
         fi
         cmd="$cmd -saveTraces $(params.save-traces) "
       fi
-      if [[ $(params.os) == "darwin" ]]; then
+      if [[ $(params.os) == "darwin" || $(params.os) == "rhel" ]]; then
         cmd="${TARGET_FOLDER}/runner.sh "
         cmd="$cmd --targetFolder ${TARGET_FOLDER} "
         cmd="$cmd --resultsFolder ${TARGET_RESULTS} "
@@ -222,11 +222,13 @@ spec:
         if [[ -n "$(params.podman-path)" ]]; then
           cmd="$cmd --podmanPath $(params.podman-path) "
         fi
-        cmd="$cmd --initialize $(params.podman-initialize) "
-        cmd="$cmd --start $(params.podman-start) "
-        cmd="$cmd --rootful $(params.podman-rootful) "
-        if [[ -n "$(params.podman-provider)" ]]; then
-          cmd="$cmd --podmanProvider $(params.podman-provider) "
+        if [[ $(params.os) == "darwin" ]]; then
+          cmd="$cmd --initialize $(params.podman-initialize) "
+          cmd="$cmd --start $(params.podman-start) "
+          cmd="$cmd --rootful $(params.podman-rootful) "
+          if [[ -n "$(params.podman-provider)" ]]; then
+            cmd="$cmd --podmanProvider $(params.podman-provider) "
+          fi
         fi
         cmd="$cmd --saveTraces $(params.save-traces) "
         cmd="$cmd --cleanMachine $(params.clean-machine) "
@@ -234,7 +236,7 @@ spec:
           cmd="$cmd --scriptPaths $(params.script-paths) "
         fi
       fi
-      
+
       echo "Composed Command to be executed: '${cmd}'"
 
       # Exec
