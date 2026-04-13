@@ -261,7 +261,7 @@ git --version
 
 # Install pnpm
 echo "Installing pnpm"
-sudo npm install -g pnpm@$pnpmVersion
+npm install -g pnpm@$pnpmVersion
 echo "pnpm Version: $(pnpm --version)"
 
 # Setup Podman path
@@ -283,10 +283,10 @@ fi
 # Terminate any running Podman Desktop instances
 exit_status=0
 echo "pid of running Podman Desktop instances:"
-pgrep -f "podman-desktop" || exit_status=$?
+pgrep -f "Podman Desktop" || exit_status=$?
 if (( exit_status == 0 )); then
     echo "Podman Desktop is running, terminating..."
-    kill -9 $(pgrep -f "podman-desktop")
+    kill -9 $(pgrep -f "Podman Desktop")
 else
     echo "No running Podman Desktop"
 fi

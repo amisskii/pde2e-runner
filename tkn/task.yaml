@@ -139,6 +139,10 @@ spec:
       TARGET_HOST_KEY_PATH=$(workspaces.pipelines-data.path)/$(params.workspace-resources-path)/$(params.key)
       chmod 600 ${TARGET_HOST_KEY_PATH}
       TARGET_FOLDER=pd-e2e
+      # RHEL: /home is a separate 1G LVM partition; write to root filesystem instead
+      if [[ $(params.os) == "rhel" ]]; then
+        TARGET_FOLDER=/opt/pd-e2e
+      fi
       TARGET_RESULTS=$(params.results-folder)
       TARGET_CLEANUP=$(params.target-cleanup)
       OUTPUT_FOLDER=$(workspaces.pipelines-data.path)/$(params.workspace-resources-path)/$(params.workspace-qe-subpath)
@@ -240,6 +244,13 @@ spec:
       echo "Composed Command to be executed: '${cmd}'"
 
       # Exec
+      # For RHEL: /opt is not writable by rhqp without sudo; pre-create with correct ownership
+      if [[ $(params.os) == "rhel" ]]; then
+        ssh -i ${TARGET_HOST_KEY_PATH} \
+          -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          ${TARGET_HOST_USERNAME}@${TARGET_HOST} \
+          "sudo mkdir -p ${TARGET_FOLDER} && sudo chown ${TARGET_HOST_USERNAME}:${TARGET_HOST_USERNAME} ${TARGET_FOLDER}"
+      fi
       . entrypoint.sh "${cmd}"
 
       # Results
