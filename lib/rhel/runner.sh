@@ -259,6 +259,11 @@ if ! command -v git &> /dev/null; then
 fi
 git --version
 
+if ! command -v xvfb-run &> /dev/null; then
+    echo "Installing xorg-x11-server-Xvfb via dnf..."
+    sudo dnf install -y xorg-x11-server-Xvfb
+fi
+
 # Install pnpm
 echo "Installing pnpm"
 npm install -g pnpm@$pnpmVersion
