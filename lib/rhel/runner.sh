@@ -260,14 +260,23 @@ fi
 git --version
 
 if ! command -v xvfb-run &> /dev/null; then
-    echo "xvfb-run not available (expected on RHEL 10); setting up headless Wayland display via weston + Xwayland..."
-    sudo dnf install -y weston xorg-x11-server-Xwayland
-    export WAYLAND_DISPLAY=wayland-headless-1
-    weston --backend=headless-backend.so --socket=wayland-headless-1 --xwayland &
-    sleep 2
-    export DISPLAY=:0
-    echo "Headless display ready: DISPLAY=$DISPLAY, WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+    echo "xvfb-run not available (expected on RHEL 10); starting mutter headless Wayland compositor..."
+    sudo dnf install -y mutter
+    export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+    mkdir -p "$XDG_RUNTIME_DIR"
+    export WAYLAND_DISPLAY=wayland-1
+    dbus-run-session -- mutter --headless --wayland-display wayland-1 &
+    for i in $(seq 1 15); do
+        [ -S "$XDG_RUNTIME_DIR/wayland-1" ] && break
+        sleep 1
+    done
+    export ELECTRON_OZONE_PLATFORM_HINT=auto
+    echo "Headless Wayland display ready: WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
 fi
+
+# Redirect Playwright browser cache and pnpm store off the 1G /home partition
+export PLAYWRIGHT_BROWSERS_PATH=/opt/.cache/ms-playwright
+export PNPM_STORE_DIR=/opt/.pnpm-store
 
 # Install pnpm
 echo "Installing pnpm"
