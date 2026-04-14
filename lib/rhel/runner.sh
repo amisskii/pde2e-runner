@@ -260,8 +260,13 @@ fi
 git --version
 
 if ! command -v xvfb-run &> /dev/null; then
-    echo "Installing xorg-x11-server-Xvfb via dnf..."
-    sudo dnf install -y xorg-x11-server-Xvfb
+    echo "xvfb-run not available (expected on RHEL 10); setting up headless Wayland display via weston + Xwayland..."
+    sudo dnf install -y weston xorg-x11-server-Xwayland
+    export WAYLAND_DISPLAY=wayland-headless-1
+    weston --backend=headless-backend.so --socket=wayland-headless-1 --xwayland &
+    sleep 2
+    export DISPLAY=:0
+    echo "Headless display ready: DISPLAY=$DISPLAY, WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
 fi
 
 # Install pnpm
