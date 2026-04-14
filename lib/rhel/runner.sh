@@ -261,7 +261,10 @@ git --version
 
 if ! command -v xvfb-run &> /dev/null; then
     echo "xvfb-run not available (expected on RHEL 10); starting mutter headless Wayland compositor..."
-    sudo dnf install -y mutter
+    sudo dnf install -y mutter \
+        atk gtk3 at-spi2-atk \
+        alsa-lib cups-libs nss nspr \
+        libXcomposite libXdamage libXfixes libXrandr libXtst
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
     mkdir -p "$XDG_RUNTIME_DIR"
     export WAYLAND_DISPLAY=wayland-1
