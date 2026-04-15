@@ -259,27 +259,41 @@ if ! command -v git &> /dev/null; then
 fi
 git --version
 
-if ! command -v xvfb-run &> /dev/null; then
-    echo "xvfb-run not available (expected on RHEL 10); starting mutter headless Wayland compositor..."
-    sudo dnf install -y mutter \
-        atk gtk3 at-spi2-atk \
-        alsa-lib cups-libs nss nspr \
-        libXcomposite libXdamage libXfixes libXrandr libXtst
-    export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-    mkdir -p "$XDG_RUNTIME_DIR"
-    export WAYLAND_DISPLAY=wayland-1
-    dbus-run-session -- mutter --headless --wayland-display wayland-1 &
-    for i in $(seq 1 15); do
-        [ -S "$XDG_RUNTIME_DIR/wayland-1" ] && break
+echo "Installing display and Electron runtime dependencies..."
+sudo dnf install -y gnome-remote-desktop gdm \
+    atk gtk3 at-spi2-atk \
+    alsa-lib cups-libs nss nspr \
+    libXcomposite libXdamage libXfixes libXrandr libXtst
+
+# SELinux permissive required for GNOME headless session (RHEL docs prerequisite)
+sudo setenforce 0 2>/dev/null || true
+
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    echo "Display already available: DISPLAY=$DISPLAY WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+else
+    echo "No display found, starting GNOME headless session..."
+    # Ensure XDG_RUNTIME_DIR is set for SSH sessions
+    export XDG_RUNTIME_DIR=/run/user/$(id -u)
+    # Start headless GNOME session as system service (RHEL docs section 1.4, step 7)
+    sudo systemctl enable --now gnome-headless-session@$USER.service
+    # Wait up to 30s for Wayland socket
+    for i in $(seq 1 30); do
+        [ -S "$XDG_RUNTIME_DIR/wayland-0" ] && { export WAYLAND_DISPLAY=wayland-0; break; }
         sleep 1
     done
+    if [ -z "$WAYLAND_DISPLAY" ]; then
+        echo "ERROR: Wayland socket not found after 30s"
+        exit 1
+    fi
+    # Electron uses Wayland directly via Ozone; dummy DISPLAY for xvfb-maybe passthrough
     export ELECTRON_OZONE_PLATFORM_HINT=auto
-    echo "Headless Wayland display ready: WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+    export DISPLAY=:99
+    echo "Headless GNOME display ready: WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
 fi
 
 # Redirect Playwright browser cache and pnpm store off the 1G /home partition
-export PLAYWRIGHT_BROWSERS_PATH=/opt/.cache/ms-playwright
-export PNPM_STORE_DIR=/opt/.pnpm-store
+export PLAYWRIGHT_BROWSERS_PATH="$workingDir/.cache/ms-playwright"
+export PNPM_STORE_DIR="$workingDir/.pnpm-store"
 
 # Install pnpm
 echo "Installing pnpm"
