@@ -260,15 +260,16 @@ fi
 git --version
 
 echo "Installing display and Electron runtime dependencies..."
-sudo dnf install -y gnome-remote-desktop gdm \
-    atk gtk3 at-spi2-atk \
-    alsa-lib cups-libs nss nspr \
+sudo dnf install -y gnome-remote-desktop gdm make \
+    mesa-libGL mesa-dri-drivers mesa-libEGL mesa-libgbm \
+    atk gtk3 at-spi2-atk cairo pango \
+    libxkbcommon alsa-lib cups-libs nss nspr \
     libXcomposite libXdamage libXfixes libXrandr libXtst
 
 # SELinux permissive required for GNOME headless session (RHEL docs prerequisite)
 sudo setenforce 0 2>/dev/null || true
 
-if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+if [ -n "$DISPLAY" ]; then
     echo "Display already available: DISPLAY=$DISPLAY WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
 else
     echo "No display found, starting GNOME headless session..."
@@ -285,10 +286,20 @@ else
         echo "ERROR: Wayland socket not found after 30s"
         exit 1
     fi
-    # Electron uses Wayland directly via Ozone; dummy DISPLAY for xvfb-maybe passthrough
-    export ELECTRON_OZONE_PLATFORM_HINT=auto
-    export DISPLAY=:99
-    echo "Headless GNOME display ready: WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+    # gnome-shell starts Xwayland on :1 automatically as part of the headless session
+    # Wait for it and use it — no need to start our own
+    for i in $(seq 1 15); do
+        [ -S /tmp/.X11-unix/X1 ] && { export DISPLAY=:1; break; }
+        sleep 1
+    done
+    if [ -z "$DISPLAY" ]; then
+        echo "ERROR: Xwayland not found on :1 after 15s"
+        exit 1
+    fi
+    # Use the D-Bus session bus provided by gnome-headless-session — all GNOME services
+    # (keyring, notifications, accessibility) are registered on it, matching a real user session.
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+    echo "Headless display ready: WAYLAND_DISPLAY=$WAYLAND_DISPLAY DISPLAY=$DISPLAY DBUS=$DBUS_SESSION_BUS_ADDRESS"
 fi
 
 # Redirect Playwright browser cache and pnpm store off the 1G /home partition
@@ -385,6 +396,15 @@ if [[ "$extTests" -eq 1 ]]; then
 fi
 
 execute_scripts
+
+# Force Mesa software rendering. On GPU-less Azure Hyper-V VMs there is no DRM render node;
+# without this, Chromium's GPU subprocess hangs silently on DRI3/EGL initialisation and
+# electron.launch() times out. LIBGL_ALWAYS_SOFTWARE=1 also triggers --use-gl=swiftshader
+# in electron-runner.ts, so Chromium uses its bundled CPU renderer instead of probing hardware.
+export LIBGL_ALWAYS_SOFTWARE=1
+# Enable Chromium internal logging to stderr so Playwright captures it in the call log.
+# This lets us see exactly where Electron hangs during the 45-second timeout.
+export ELECTRON_ENABLE_LOGGING=1
 
 if (( extTests == 1 )); then
     cd "$workingDir/$extRepo"
